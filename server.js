@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const mongodb = require('mongodb');
 const mongoose = require('mongoose');
 const MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectId; 
@@ -78,13 +79,17 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
 
   app.post("/api/exercise/add", (req, res, next) => {
     console.log("Updating exercise records...");
+    hexRegExp = /^(?=[a-f\d]{24}$)(\d+[a-f]|[a-f]+\d)/i;
+    if(!hexRegExp.test(req.body.userId)) {
+      next("Not a valid user ID");
+    }
     collection.findOneAndUpdate({ _id: ObjectId(req.body.userId) },
       { $inc: { count: 1 },
         $push: {
           log: {
             "description": req.body.description,
             "duration": req.body.duration,
-            "date": req.body.date
+            "date": new Date(req.body.date).toDateString()
           }
         } 
       },
@@ -93,16 +98,17 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
       },
       
       (error, doc) => {
-        if (error) next(error);
+        if (error) next("Not a valid user ID");
         if (doc.value == null) {
           next("No such UserId in database")
         } else {
         res.json({UserName: doc.value.username,
            "description": req.body.description,
           "duration": req.body.duration,
-          "date": req.body.date,
+          "date": new Date(req.body.date).toDateString(),
         "_id": req.body.userId});
       }}) 
+    
   })
 
 
