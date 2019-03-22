@@ -1,48 +1,114 @@
-const express = require('express')
-const app = express()
-const bodyParser = require('body-parser')
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const MongoClient = require('mongodb').MongoClient;
+var ObjectId = require('mongodb').ObjectId; 
 
-const cors = require('cors')
+const uri = "mongodb+srv://JeffAbney:warhol88@cluster0-schfu.mongodb.net/test?retryWrites=true";
+MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
+  if (error) return process.exit(1);
+  var db = client.db('FCC');
+  var collection = db.collection('Exercise');
+  console.log("connection is working");
 
-const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track' )
+  app.use(cors());
 
-app.use(cors())
-
-app.use(bodyParser.urlencoded({extended: false}))
-app.use(bodyParser.json())
-
-
-app.use(express.static('public'))
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/views/index.html')
-});
+  app.use(bodyParser.urlencoded({ extended: false }));
+  app.use(bodyParser.json());
 
 
-// Not found middleware
-app.use((req, res, next) => {
-  return next({status: 404, message: 'not found'})
-})
+  app.use(express.static('public'));
+  app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/views/index.html')
+  });
 
-// Error Handling middleware
-app.use((err, req, res, next) => {
-  let errCode, errMessage
 
-  if (err.errors) {
-    // mongoose validation error
-    errCode = 400 // bad request
-    const keys = Object.keys(err.errors)
-    // report the first validation error
-    errMessage = err.errors[keys[0]].message
-  } else {
-    // generic or custom error
-    errCode = err.status || 500
-    errMessage = err.message || 'Internal Server Error'
-  }
-  res.status(errCode).type('txt')
-    .send(errMessage)
-})
+  // Not found middleware
+  /* app.use((req, res, next) => {
+     return next({ status: 404, message: 'not found' })
+   }) */
 
-const listener = app.listen(process.env.PORT || 3000, () => {
-  console.log('Your app is listening on port ' + listener.address().port)
+  // Error Handling middleware
+  app.use((err, req, res, next) => {
+    let errCode, errMessage
+
+    if (err.errors) {
+      // mongoose validation error
+      errCode = 400 // bad request
+      const keys = Object.keys(err.errors)
+      // report the first validation error
+      errMessage = err.errors[keys[0]].message
+    } else {
+      // generic or custom error
+      errCode = err.status || 500
+      errMessage = err.message || 'Internal Server Error'
+    }
+    res.status(errCode).type('txt')
+      .send(errMessage)
+  })
+
+  //Jeff's code goes here
+  app.post("/api/exercise/new-user", (req, res, next) => {
+    username = req.body.username;
+
+    collection.findOne({ username: username }, (error, doc) => {
+      if (error) next(error);
+      if (doc != null) next("User already exists: " + doc.username + "  Id: " + doc._id);
+      else {
+        collection.insert({ username: username }, (error, results) => {
+          if (error) return res.json({ "error": "Could not add user" })
+          console.log("New user: " + results.ops[0].username);
+          return res.json({ username: results.ops[0].username, _id: results.ops[0]._id });
+        })
+      }
+    })
+  })
+
+  app.get("/api/exercise/users", (req, res, next) => {
+    console.log("Getting users...");
+    collection.find({}, { username: 1, _id: 1 }).toArray((error, arr) => {
+      if (error) next(error);
+      console.log(arr);
+      res.send(arr);
+    })
+
+  });
+
+  app.post("/api/exercise/add", (req, res, next) => {
+    console.log("Updating exercise records...");
+    collection.findOneAndUpdate({ _id: ObjectId(req.body.userId) },
+      { $inc: { count: 1 },
+        $push: {
+          log: {
+            "description": req.body.description,
+            "duration": req.body.duration,
+            "date": req.body.date
+          }
+        } 
+      },
+      {
+        returnNewDocument: true
+      },
+      
+      (error, doc) => {
+        if (error) next(error);
+        if (doc.value == null) {
+          next("No such UserId in database")
+        } else {
+        res.json({UserName: doc.value.username,
+           "description": req.body.description,
+          "duration": req.body.duration,
+          "date": req.body.date,
+        "_id": req.body.userId});
+      }}) 
+  })
+
+
+  //Jeff's code ends here
+
+  const listener = app.listen(process.env.PORT || 3000, () => {
+    console.log('Your app is listening on port ' + listener.address().port)
+  })
 })
