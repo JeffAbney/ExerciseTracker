@@ -111,6 +111,24 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
     
   })
 
+  app.get("/api/exercise/log", (req, res, next) => {
+    console.log("Getting user data...")
+    let id = req.query.userId;
+    hexRegExp = /^(?=[a-f\d]{24}$)(\d+[a-f]|[a-f]+\d)/i;
+    if(!hexRegExp.test(id)) {
+      next("Not a valid user ID");
+    }
+    collection.findOne({ _id: ObjectId(id) }, (error, doc) => {
+      if (error) next(error);
+      if (doc == null) {
+        next("No such user Id in collection")
+      } else {
+        res.json(doc);
+      }
+    })
+
+  })
+
 
   //Jeff's code ends here
 
