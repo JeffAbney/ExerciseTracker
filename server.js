@@ -89,7 +89,7 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
           log: {
             "description": req.body.description,
             "duration": req.body.duration,
-            "date": new Date(req.body.date).toDateString()
+            "date":req.body.date ? new Date(req.body.date).toDateString() : new Date().toDateString()
           }
         } 
       },
@@ -105,7 +105,7 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
         res.json({UserName: doc.value.username,
            "description": req.body.description,
           "duration": req.body.duration,
-          "date": new Date(req.body.date).toDateString(),
+          "date": req.body.date ? new Date(req.body.date).toDateString() : new Date().toDateString(),
         "_id": req.body.userId});
       }}) 
     
