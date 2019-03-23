@@ -114,12 +114,25 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
   app.get("/api/exercise/log", (req, res, next) => {
     console.log("Getting user data...")
     let id = req.query.userId;
+    let from = req.query.from;
+    let to = req.query.to;
+    let limit = parseInt(req.query.limit);
+
+    let projection = function() {
+      console.log(limit);
+      if (limit > 0) {
+        return {log: { $slice: limit}}
+      } else {
+        return {};
+      }
+    }
+
     hexRegExp = /^(?=[a-f\d]{24}$)(\d+[a-f]|[a-f]+\d)/i;
     if(!hexRegExp.test(id)) {
       next("Not a valid user ID");
     }
-    collection.findOne({ _id: ObjectId(id) }, (error, doc) => {
-      if (error) next(error);
+    collection.findOne({ _id: ObjectId(id) }, projection(), (error, doc) => {
+      if (error) res.send(error);
       if (doc == null) {
         next("No such user Id in collection")
       } else {
