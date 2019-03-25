@@ -5,7 +5,7 @@ const cors = require('cors');
 const mongodb = require('mongodb');
 const mongoose = require('mongoose');
 const MongoClient = require('mongodb').MongoClient;
-var ObjectId = require('mongodb').ObjectId; 
+var ObjectId = require('mongodb').ObjectId;
 
 const uri = "mongodb+srv://JeffAbney:warhol88@cluster0-schfu.mongodb.net/test?retryWrites=true";
 MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
@@ -80,35 +80,39 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
   app.post("/api/exercise/add", (req, res, next) => {
     console.log("Updating exercise records...");
     hexRegExp = /^(?=[a-f\d]{24}$)(\d+[a-f]|[a-f]+\d)/i;
-    if(!hexRegExp.test(req.body.userId)) {
+    if (!hexRegExp.test(req.body.userId)) {
       next("Not a valid user ID");
     }
     collection.findOneAndUpdate({ _id: ObjectId(req.body.userId) },
-      { $inc: { count: 1 },
+      {
+        $inc: { count: 1 },
         $push: {
           log: {
             "description": req.body.description,
             "duration": req.body.duration,
-            "date":req.body.date ? new Date(req.body.date).toDateString() : new Date().toDateString()
+            "date": req.body.date ? new Date(req.body.date).toDateString() : new Date().toDateString()
           }
-        } 
+        }
       },
       {
         returnNewDocument: true
       },
-      
+
       (error, doc) => {
         if (error) next("Not a valid user ID");
         if (doc.value == null) {
           next("No such UserId in database")
         } else {
-        res.json({UserName: doc.value.username,
-           "description": req.body.description,
-          "duration": req.body.duration,
-          "date": req.body.date ? new Date(req.body.date).toDateString() : new Date().toDateString(),
-        "_id": req.body.userId});
-      }}) 
-    
+          res.json({
+            UserName: doc.value.username,
+            "description": req.body.description,
+            "duration": req.body.duration,
+            "date": req.body.date ? new Date(req.body.date).toDateString() : new Date().toDateString(),
+            "_id": req.body.userId
+          });
+        }
+      })
+
   })
 
   app.get("/api/exercise/log", (req, res, next) => {
@@ -118,25 +122,46 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
     let to = req.query.to;
     let limit = parseInt(req.query.limit);
 
-    let projection = function() {
-      console.log(limit);
-      if (limit > 0) {
-        return {log: { $slice: limit}}
-      } else {
-        return {};
+    const limiter = function(el) {
+      if(limit) {
+        return el.slice(0, limit)
       }
+      else return el;
     }
 
+
     hexRegExp = /^(?=[a-f\d]{24}$)(\d+[a-f]|[a-f]+\d)/i;
-    if(!hexRegExp.test(id)) {
+    if (!hexRegExp.test(id)) {
       next("Not a valid user ID");
     }
-    collection.findOne({ _id: ObjectId(id) }, projection(), (error, doc) => {
+    collection.findOne({ _id: ObjectId(id) }, (error, doc) => {
       if (error) res.send(error);
       if (doc == null) {
         next("No such user Id in collection")
+      }
+      if (from || to) {
+        console.log("log" , doc.log);
+        console.log("from" , new Date(from), "to", to);
+        console.log("ex date" , new Date(doc.log[0].date));
+      //Filter results to include only exercise from query period
+      let log = doc.log;
+        if (from) {
+          let newLog = doc.log.filter( ex => new Date(ex.date) > new Date(from)  )
+          if (to) {
+            newLog = newLog.filter( ex => new Date(ex.date) < new Date(to)  )
+          }
+          res.json(limiter(newLog))
+          
+        }
+        else if (to) {
+          log = doc.log.filter( ex => new Date(ex.date) < new Date(to)  )
+          res.json(limiter(log));
+        }
+        
+          
       } else {
-        res.json(doc);
+        console.log("Here's the data");
+        res.json(limiter(doc.log));
       }
     })
 
