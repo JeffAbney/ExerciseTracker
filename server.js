@@ -122,13 +122,12 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
     let to = req.query.to;
     let limit = parseInt(req.query.limit);
 
-    const limiter = function(el) {
-      if(limit) {
+    const limiter = function (el) {
+      if (limit) {
         return el.slice(0, limit)
       }
       else return el;
     }
-
 
     hexRegExp = /^(?=[a-f\d]{24}$)(\d+[a-f]|[a-f]+\d)/i;
     if (!hexRegExp.test(id)) {
@@ -140,28 +139,25 @@ MongoClient.connect(uri, { useNewUrlParser: true }, (error, client) => {
         next("No such user Id in collection")
       }
       if (from || to) {
-        console.log("log" , doc.log);
-        console.log("from" , new Date(from), "to", to);
-        console.log("ex date" , new Date(doc.log[0].date));
-      //Filter results to include only exercise from query period
-      let log = doc.log;
+        //Filter results to include only exercise from query period
+        let log = doc.log;
         if (from) {
-          let newLog = doc.log.filter( ex => new Date(ex.date) > new Date(from)  )
+          let newLog = doc.log.filter(ex => new Date(ex.date) > new Date(from))
           if (to) {
-            newLog = newLog.filter( ex => new Date(ex.date) < new Date(to)  )
+            newLog = newLog.filter(ex => new Date(ex.date) < new Date(to))
           }
-          res.json(limiter(newLog))
-          
+          res.json({ _id: id, username: doc.username, count: limiter(newLog).length, log: limiter(newLog) })
+
         }
         else if (to) {
-          log = doc.log.filter( ex => new Date(ex.date) < new Date(to)  )
-          res.json(limiter(log));
+          log = doc.log.filter(ex => new Date(ex.date) < new Date(to))
+          res.json({ _id: id, username: doc.username, count: limiter(log).length, log: limiter(log) });
         }
-        
-          
+
+
       } else {
         console.log("Here's the data");
-        res.json(limiter(doc.log));
+        res.json({ _id: id, username: doc.username, count: limiter(doc.log).length, log: limiter(doc.log) });
       }
     })
 
